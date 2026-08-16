@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>AI Roundtable</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230f172a'/%3E%3Ccircle cx='16' cy='8' r='3' fill='%2338bdf8'/%3E%3Ccircle cx='9' cy='21' r='3' fill='%23a78bfa'/%3E%3Ccircle cx='23' cy='21' r='3' fill='%2334d399'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-head">
+          <h1>AI Roundtable</h1>
+          <button type="button" class="btn primary block" id="new-chat">New conversation</button>
+        </div>
+        <nav class="conversations" id="conversation-list" aria-label="Conversations"></nav>
+        <div class="sidebar-foot">
+          <button type="button" class="btn ghost block" id="open-settings">Settings</button>
+          <p class="version">v1.0.0</p>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <button type="button" class="btn ghost icon" id="toggle-sidebar" aria-label="Toggle sidebar">☰</button>
+          <div class="controls">
+            <label class="control">
+              <span>Mode</span>
+              <select id="mode">
+                <option value="full">Full roundtable</option>
+                <option value="panel">Panel (no peer review)</option>
+                <option value="direct">Direct (single model)</option>
+              </select>
+            </label>
+            <label class="control">
+              <span>Chair</span>
+              <select id="chair"></select>
+            </label>
+          </div>
+          <div class="status-dots" id="provider-status"></div>
+        </header>
+
+        <section class="transcript" id="transcript" aria-live="polite">
+          <div class="empty-state" id="empty-state">
+            <h2>Three models. One answer.</h2>
+            <p>
+              ChatGPT, Claude, and Gemini answer independently, review each other's
+              answers, and your chosen chair writes the final response.
+            </p>
+          </div>
+        </section>
+
+        <section class="composer">
+          <div class="notice" id="notice" hidden></div>
+          <form id="composer-form">
+            <textarea
+              id="composer-input"
+              rows="1"
+              placeholder="Ask the roundtable… (Enter to send, Shift+Enter for a new line)"
+              autocomplete="off"
+            ></textarea>
+            <button type="submit" class="btn primary" id="send">Send</button>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="settings-dialog">
+      <form method="dialog" class="settings">
+        <h2>Settings</h2>
+        <p class="hint">
+          Model overrides are stored in this browser only and do not change
+          <code>.env</code>. Leave a field blank to use the server default.
+        </p>
+        <div id="model-overrides"></div>
+        <p class="hint">
+          API keys are held on the server and are never sent to this page.
+        </p>
+        <menu>
+          <button value="cancel" class="btn ghost">Close</button>
+          <button value="save" class="btn primary" id="save-settings">Save</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
