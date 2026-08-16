@@ -2,11 +2,11 @@
 
 **Version 1.0.0**
 
-A single local chat application where OpenAI/ChatGPT, Anthropic/Claude, and Google/Gemini collaborate on each user turn.
+A single local chat application where OpenAI/ChatGPT, Anthropic/Claude, and Google/Gemini collaborate on each user turn. Go backend, React frontend, one self-contained binary.
 
 ## How one turn works
 
-1. **Independent answers**: every configured model receives the canonical conversation history and current request in parallel.
+1. **Independent answers**: every configured model receives the conversation history and current request in parallel.
 2. **Peer review**: each successful model receives all successful first-pass answers and critiques them.
 3. **Chair synthesis**: the selected chair receives the conversation, candidate answers, and reviews and writes one final answer.
 4. **Trace storage**: the final answer and the complete visible deliberation record are saved in SQLite.
@@ -48,6 +48,16 @@ A single local chat application where OpenAI/ChatGPT, Anthropic/Claude, and Goog
 
 The app deliberately does **not** request or expose providers' hidden chain-of-thought. The trace contains only normal model outputs explicitly requested for collaboration.
 
+## Stack
+
+| Layer     | Technology                                                                  |
+| --------- | --------------------------------------------------------------------------- |
+| Backend   | Go 1.24, standard-library `net/http`, no web framework                       |
+| Frontend  | React 19 + TypeScript, built with Vite                                       |
+| Storage   | SQLite via `modernc.org/sqlite` (pure Go — no cgo, no C toolchain)           |
+| Transport | JSON over HTTP, plus Server-Sent Events for live turn progress               |
+| Packaging | The built UI is embedded with `go:embed`, so the binary is self-contained    |
+
 ## Features
 
 - One responsive dark-mode web chat
@@ -56,37 +66,36 @@ The app deliberately does **not** request or expose providers' hidden chain-of-t
 - Parallel peer-review round
 - Selectable synthesis chair
 - Full Roundtable, Panel, and Direct modes
-- Per-provider model overrides
+- Per-provider model overrides, stored per browser
 - Persistent SQLite conversation history
 - Expandable deliberation trace on every answer
-- Server-Sent Event progress updates
-- Automatic retry with exponential backoff
+- Server-Sent Event progress updates, buffered so a late subscriber still sees the whole run
+- Automatic retry with exponential backoff and jitter
 - Chair fallback when the selected synthesis provider fails
 - API keys kept server-side in `.env`
-- Browser security headers and no third-party frontend dependencies
+- Browser security headers and no third-party frontend dependencies at runtime
 - Windows `.bat` and PowerShell launchers
-- Unit tests for prompt construction and orchestration behavior
+- Go test suite covering prompts, orchestration, providers, storage, and the HTTP API
 
 ## Provider interfaces
 
-| Provider  | Interface                                          | Default model       |
-| --------- | -------------------------------------------------- | ------------------- |
-| OpenAI    | Responses API (`POST /v1/responses`)                 | `gpt-5.6`           |
-| Anthropic | Messages API (`POST /v1/messages`, official SDK)     | `claude-sonnet-5`   |
-| Google    | Gemini Interactions API (`POST /v1beta/interactions`) | `gemini-3.7-flash`  |
+| Provider  | Interface                                             | Client            | Default model      |
+| --------- | ----------------------------------------------------- | ----------------- | ------------------ |
+| OpenAI    | Responses API (`POST /v1/responses`)                  | `net/http`        | `gpt-5.6`          |
+| Anthropic | Messages API (`POST /v1/messages`)                    | official Go SDK   | `claude-sonnet-5`  |
+| Google    | Gemini Interactions API (`POST /v1beta/interactions`) | `net/http`        | `gemini-3.7-flash` |
 
-Each provider is a small adapter behind a shared interface, so swapping a model
-ID or adding a fourth vendor touches one file in `app/providers/`.
+Each provider is a small adapter behind one interface, so changing a model ID or adding a fourth vendor touches one file in `internal/providers/`.
 
 ## Windows setup
 
-### 1. Install Python
+### 1. Install Go
 
-Install **Python 3.11 or newer** from python.org. During installation, enable the option to add Python to PATH if offered.
+Install **Go 1.24 or newer** from [go.dev/dl](https://go.dev/dl/). Node.js is **not** required to run the app: the React UI is committed pre-built and embedded into the binary.
 
 ### 2. Extract the project
 
-Extract the project to a permanent folder, for example:
+Extract it to a permanent folder, for example:
 
 ```text
 C:\Users\<your-user>\Applications\ai-roundtable
@@ -102,8 +111,7 @@ run.bat
 
 On the first run it will:
 
-- create `.venv`
-- install dependencies
+- compile `roundtable.exe`
 - copy `.env.example` to `.env`
 - open `.env` in Notepad
 
@@ -131,38 +139,42 @@ http://127.0.0.1:8000
 
 Your browser opens automatically.
 
-## Manual setup
-
-```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-Copy-Item .env.example .env
-notepad .env
-python -m app.start
-```
-
-On macOS or Linux the equivalent is:
+## Manual setup (any platform)
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-cp .env.example .env
-python -m app.start
+cp .env.example .env      # then add your API keys
+go build -o roundtable ./cmd/roundtable
+./roundtable
+```
+
+To rebuild the UI after changing anything under `web/src`:
+
+```bash
+cd web && npm install && npm run build   # writes web/dist
+cd .. && go build -o roundtable ./cmd/roundtable
+```
+
+`make` targets are provided for the same steps: `make web`, `make build`, `make run`, `make check`.
+
+## Development
+
+Run the Go server and the Vite dev server side by side for hot module reloading:
+
+```bash
+go run ./cmd/roundtable      # terminal 1 — API on :8000
+cd web && npm run dev        # terminal 2 — UI on :5173, proxies /api to :8000
 ```
 
 ## Tests
 
-With the virtual environment active:
-
-```powershell
-pytest -q
+```bash
+go test ./...          # unit + HTTP integration tests
+go test -race ./...    # same suite under the race detector
+go vet ./...
+cd web && npm run typecheck
 ```
 
-The orchestration tests use fake providers and do not spend API credits.
+Every test uses fake providers, so the suite makes no network calls and spends no API credits.
 
 ## Modes
 
@@ -182,7 +194,9 @@ ANTHROPIC_MODEL=claude-sonnet-5
 GEMINI_MODEL=gemini-3.7-flash
 APP_HOST=127.0.0.1
 APP_PORT=8000
-DATABASE_URL=sqlite+aiosqlite:///./data/roundtable.db
+DATABASE_PATH=data/roundtable.db
+LOG_LEVEL=info
+OPEN_BROWSER=true
 REQUEST_TIMEOUT_SECONDS=120
 PROVIDER_RETRIES=2
 MAX_PROMPT_CHARS=30000
@@ -190,73 +204,68 @@ MAX_OUTPUT_TOKENS=16000
 HISTORY_MESSAGE_LIMIT=24
 HISTORY_CHAR_LIMIT=60000
 DEFAULT_CHAIR=openai
-OPEN_BROWSER=true
-LOG_LEVEL=INFO
 ```
 
-The web settings dialog can override model IDs per browser without changing `.env`.
+Real environment variables override `.env`. The web settings dialog can override model IDs per browser without changing `.env`.
 
 ## Failure behaviour
 
 - A provider that errors is **isolated**: its answer is dropped and the turn continues with the rest.
-- Transient failures (timeouts, 429, 5xx) are retried with exponential backoff up to `PROVIDER_RETRIES` times. Authentication and validation errors fail immediately.
+- Transient failures (timeouts, 408, 429, 5xx) are retried with exponential backoff and jitter, up to `PROVIDER_RETRIES` times. Authentication and validation errors fail immediately.
 - If the selected chair fails, another provider that answered successfully takes over, and the answer is labelled as a fallback.
 - If every chair candidate fails, the strongest single first-round answer is returned rather than losing the turn.
 - If every provider fails, the turn reports the error and nothing is written to history.
 
 ## HTTP API
 
-| Method   | Path                             | Purpose                                       |
-| -------- | -------------------------------- | --------------------------------------------- |
-| `GET`    | `/api/config`                    | Providers, models, modes (never API keys)     |
-| `GET`    | `/api/conversations`             | Conversation list                             |
-| `GET`    | `/api/conversations/{id}`        | One conversation with messages and traces     |
-| `DELETE` | `/api/conversations/{id}`        | Delete a conversation and its traces          |
-| `POST`   | `/api/chat`                      | Start a turn; returns a `run_id`              |
-| `GET`    | `/api/runs/{run_id}/events`      | Server-sent progress stream for that turn     |
-| `GET`    | `/healthz`                       | Liveness check                                |
+| Method   | Path                        | Purpose                                    |
+| -------- | --------------------------- | ------------------------------------------ |
+| `GET`    | `/api/config`               | Providers, models, modes (never API keys)  |
+| `GET`    | `/api/conversations`        | Conversation list                          |
+| `GET`    | `/api/conversations/{id}`   | One conversation with messages and traces  |
+| `DELETE` | `/api/conversations/{id}`   | Delete a conversation and its traces       |
+| `POST`   | `/api/chat`                 | Start a turn; returns a `run_id`           |
+| `GET`    | `/api/runs/{id}/events`     | Server-sent progress stream for that turn  |
+| `GET`    | `/healthz`                  | Liveness check                             |
 
 ## Security notes
 
 - API keys never leave the backend and are never returned by `/api/config`.
-- The default server binds to `127.0.0.1`, so other devices cannot access it.
-- Do not change `APP_HOST` to `0.0.0.0` unless you intentionally want LAN access and understand the network exposure.
-- Responses carry `Content-Security-Policy`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and `Permissions-Policy` headers. The CSP allows no inline scripts or styles and no third-party origins.
-- `.env`, the local database, and the Python virtual environment are excluded by `.gitignore` and should not be committed.
+- The default server binds to `127.0.0.1`, so other devices cannot access it. Changing `APP_HOST` to a non-loopback address logs a warning at startup.
+- Responses carry `Content-Security-Policy`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, and `Cross-Origin-Opener-Policy` headers. The CSP allows no inline scripts or styles and no third-party origins.
+- `.env` and the local database are excluded by `.gitignore` and should not be committed.
 
 ## Project structure
 
 ```text
 ai-roundtable/
-├── app/
-│   ├── main.py                 FastAPI app, routes, SSE, security headers
-│   ├── start.py                uvicorn launcher, opens the browser
-│   ├── config.py               settings loaded from .env
-│   ├── db.py                   async SQLite engine and sessions
-│   ├── models.py               Conversation and Message tables
-│   ├── schemas.py              request/response models
-│   ├── services.py             conversation storage and the SSE run registry
+├── cmd/roundtable/
+│   └── main.go                  entry point: config, storage, server, shutdown
+├── internal/
+│   ├── config/                  .env + environment loading
 │   ├── orchestration/
-│   │   ├── engine.py           three-phase turn orchestration
-│   │   └── prompts.py          prompt construction for every phase
+│   │   ├── engine.go            three-phase turn orchestration
+│   │   └── prompts.go           prompt construction for every phase
 │   ├── providers/
-│   │   ├── base.py             provider interface, retries, result type
-│   │   ├── factory.py          builds providers from settings + overrides
-│   │   ├── openai_provider.py
-│   │   ├── anthropic_provider.py
-│   │   └── gemini_provider.py
-│   └── static/
-│       ├── index.html
-│       ├── styles.css
-│       └── app.js
-├── tests/
-│   ├── conftest.py             fake providers (no network, no credits)
-│   ├── test_engine.py
-│   └── test_prompts.py
+│   │   ├── provider.go          interface, result type, retry loop
+│   │   ├── factory.go           builds providers from config + overrides
+│   │   ├── openai.go
+│   │   ├── anthropic.go
+│   │   └── gemini.go
+│   ├── server/
+│   │   ├── server.go            routes, SSE, security headers, static UI
+│   │   └── runs.go              buffered run registry behind the SSE stream
+│   └── store/                   SQLite conversations, messages, traces
+├── web/
+│   ├── embed.go                 go:embed of the built UI
+│   ├── src/
+│   │   ├── App.tsx              application state and layout
+│   │   ├── api.ts               HTTP + SSE client and shared types
+│   │   ├── components/          Sidebar, Transcript, RunStatus, Trace, …
+│   │   └── styles.css
+│   └── dist/                    build output, committed so the binary is self-contained
 ├── .env.example
-├── .gitignore
-├── pytest.ini
-├── requirements.txt
+├── Makefile
 ├── run.bat
 ├── run.ps1
 ├── CHANGELOG.md
@@ -268,6 +277,8 @@ ai-roundtable/
 **"No provider API keys are configured."** `.env` is missing or its keys are blank. Fill it in and restart; the file is read at startup only.
 
 **One provider always shows red.** Hover its dot in the header for the configured model. A `404` from a provider usually means the model ID in `.env` is not available to your account.
+
+**`web UI is not built`.** The binary was compiled without `web/dist`. Run `cd web && npm install && npm run build`, then rebuild.
 
 **The browser did not open.** Set `OPEN_BROWSER=false` and open `http://127.0.0.1:8000` yourself; the server logs the address on startup.
 

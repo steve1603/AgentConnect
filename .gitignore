@@ -1,18 +1,17 @@
 .env
-.venv/
-venv/
 data/
 *.db
-*.db-journal
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.mypy_cache/
-.coverage
-htmlcov/
-dist/
-build/
-*.egg-info/
+*.db-shm
+*.db-wal
+
+# Go build output
+roundtable
+roundtable.exe
+/dist/
+
+# Frontend
+web/node_modules/
+
 .DS_Store
 Thumbs.db
 .idea/

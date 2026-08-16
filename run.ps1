@@ -11,37 +11,24 @@ Write-Host "  AI Roundtable"
 Write-Host "=========================================="
 Write-Host ""
 
-function Resolve-Python {
-    foreach ($candidate in @(@("py", "-3"), @("python"))) {
-        $exe = $candidate[0]
-        if (Get-Command $exe -ErrorAction SilentlyContinue) {
-            return $candidate
-        }
-    }
-    return $null
-}
-
-$python = Resolve-Python
-if (-not $python) {
-    Write-Host "ERROR: Python was not found." -ForegroundColor Red
-    Write-Host "Install Python 3.11 or newer from https://www.python.org/downloads/"
+if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
+    Write-Host "ERROR: Go was not found." -ForegroundColor Red
+    Write-Host "Install Go 1.24 or newer from https://go.dev/dl/ and run this again."
     Read-Host "Press Enter to exit"
     exit 1
 }
 
-$venvPython = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
-$firstRun = $false
-
-if (-not (Test-Path $venvPython)) {
-    Write-Host "Creating virtual environment..."
-    & $python[0] @($python[1..($python.Length - 1)]) -m venv .venv
-    $firstRun = $true
-}
-
-if ($firstRun) {
-    Write-Host "Installing dependencies. This can take a few minutes..."
-    & $venvPython -m pip install --upgrade pip
-    & $venvPython -m pip install -r requirements.txt
+# The React UI is committed pre-built and embedded into the binary, so no
+# Node.js toolchain is needed to run the app.
+$binary = Join-Path $PSScriptRoot "roundtable.exe"
+if (-not (Test-Path $binary)) {
+    Write-Host "Building AI Roundtable. This can take a minute on the first run..."
+    go build -o roundtable.exe ./cmd/roundtable
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: The build failed." -ForegroundColor Red
+        Read-Host "Press Enter to exit"
+        exit 1
+    }
 }
 
 if (-not (Test-Path ".env")) {
@@ -60,4 +47,4 @@ if (-not (Test-Path ".env")) {
 Write-Host "Starting AI Roundtable..."
 Write-Host "Your browser will open automatically. Press Ctrl+C to stop the server."
 Write-Host ""
-& $venvPython -m app.start
+& $binary
