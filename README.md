@@ -52,7 +52,7 @@ The app deliberately does **not** request or expose providers' hidden chain-of-t
 
 | Layer     | Technology                                                                  |
 | --------- | --------------------------------------------------------------------------- |
-| Backend   | Go 1.24, standard-library `net/http`, no web framework                       |
+| Backend   | Go, standard-library `net/http`, no web framework                       |
 | Frontend  | React 19 + TypeScript, built with Vite                                       |
 | Storage   | SQLite via `modernc.org/sqlite` (pure Go — no cgo, no C toolchain)           |
 | Transport | JSON over HTTP, plus Server-Sent Events for live turn progress               |
@@ -74,7 +74,7 @@ The app deliberately does **not** request or expose providers' hidden chain-of-t
 - Chair fallback when the selected synthesis provider fails
 - API keys kept server-side in `.env`
 - Browser security headers and no third-party frontend dependencies at runtime
-- Windows `.bat` and PowerShell launchers
+- Launchers for Windows (`.bat`, PowerShell) and for Linux, macOS, and Android/Termux (`run.sh`)
 - Go test suite covering prompts, orchestration, providers, storage, and the HTTP API
 
 ## Theme
@@ -164,7 +164,49 @@ http://127.0.0.1:8000
 
 Your browser opens automatically.
 
-## Manual setup (any platform)
+## Android setup (Termux)
+
+The app runs natively on a phone under [Termux](https://termux.dev) — the
+SQLite driver is pure Go, so there is no NDK or C toolchain involved, and the
+UI is embedded in the binary, so there is no Node.js either.
+
+```bash
+pkg update && pkg install golang git
+git clone https://github.com/steve1603/AgentConnect.git
+cd AgentConnect
+chmod +x run.sh
+./run.sh                 # builds, then creates .env and stops
+nano .env                # add your API keys (pkg install nano)
+./run.sh                 # starts the server
+```
+
+Then open **http://127.0.0.1:8000** in your phone's browser. If
+`termux-open-url` is available (`pkg install termux-tools`) the launcher opens
+it for you; otherwise the address is printed in the terminal.
+
+Notes:
+
+- `go build` on a phone is slow the first time — a few minutes is normal. The
+  binary is cached afterwards, so later starts are instant.
+- Check `go version` against the `go` directive in `go.mod`. Termux tracks Go
+  closely, but if its package is older than the directive the build fails with
+  an explicit message.
+- Termux kills background processes when Android reclaims memory. Run
+  `termux-wake-lock` first, or keep the Termux notification visible, if the
+  server stops on its own.
+- `Ctrl+C` stops the server. History lives in `data/roundtable.db` next to the
+  binary.
+
+## Linux and macOS setup
+
+```bash
+chmod +x run.sh
+./run.sh                 # builds, then creates .env and stops
+$EDITOR .env             # add your API keys
+./run.sh                 # starts the server
+```
+
+Or manually:
 
 ```bash
 cp .env.example .env      # then add your API keys
@@ -291,8 +333,9 @@ ai-roundtable/
 │   └── dist/                    build output, committed so the binary is self-contained
 ├── .env.example
 ├── Makefile
-├── run.bat
-├── run.ps1
+├── run.bat                      Windows launcher
+├── run.ps1                      Windows (PowerShell) launcher
+├── run.sh                       Linux / macOS / Android (Termux) launcher
 ├── CHANGELOG.md
 └── README.md
 ```
@@ -305,6 +348,6 @@ ai-roundtable/
 
 **`web UI is not built`.** The binary was compiled without `web/dist`. Run `cd web && npm install && npm run build`, then rebuild.
 
-**The browser did not open.** Set `OPEN_BROWSER=false` and open `http://127.0.0.1:8000` yourself; the server logs the address on startup.
+**The browser did not open.** The server logs the address on startup — open it yourself, or set `OPEN_BROWSER=false` to stop it trying. On Termux, install `termux-tools` for `termux-open-url`.
 
 **Port already in use.** Change `APP_PORT` in `.env`.
