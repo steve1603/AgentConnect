@@ -77,6 +77,31 @@ The app deliberately does **not** request or expose providers' hidden chain-of-t
 - Windows `.bat` and PowerShell launchers
 - Go test suite covering prompts, orchestration, providers, storage, and the HTTP API
 
+## Theme
+
+The UI uses a dark, tri-tone brand system defined entirely as CSS custom
+properties at the top of `web/src/styles.css`. Retheming means editing that one
+block; nothing else hard-codes a colour.
+
+| Token                        | Value     | Used for                              |
+| ---------------------------- | --------- | ------------------------------------- |
+| `--bg` / `--bg-raised`       | `#0a1526` / `#111e33` | page and panel surfaces   |
+| `--bg-sunken` / `--bg-inset` | `#060e1b` / `#17263f` | sidebar, inputs, user turns |
+| `--border`                   | `#1e3252` | dividers and outlines                 |
+| `--text` / `--text-dim`      | `#eaf0fa` / `#94a6c4` | body and secondary text   |
+| `--accent`                   | `#17b8c4` | primary actions, focus rings          |
+| `--openai`                   | `#2fd3a0` | ChatGPT's seat at the table           |
+| `--anthropic`                | `#f0975a` | Claude's seat                         |
+| `--gemini`                   | `#8b7bf7` | Gemini's seat                         |
+
+The three provider accents carry through the whole interface — the brand mark,
+the header status dots, the live progress chips, and the deliberation trace —
+so it is always obvious which model produced which piece of a turn.
+
+> The palette is an in-house interpretation, not a reproduction of any external
+> brand's official assets. Swap the token block for real brand values when they
+> are available.
+
 ## Provider interfaces
 
 | Provider  | Interface                                             | Client            | Default model      |

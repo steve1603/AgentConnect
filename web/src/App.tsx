@@ -250,7 +250,7 @@ export function App() {
           <div className="status-dots">
             {providers.map((provider) => (
               <span
-                className={`status-dot ${provider.configured ? "on" : "off"}`}
+                className={`status-dot dot-${provider.key} ${provider.configured ? "on" : "off"}`}
                 key={provider.key}
                 title={
                   provider.configured

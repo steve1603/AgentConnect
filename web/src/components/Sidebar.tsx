@@ -1,5 +1,17 @@
 import type { Conversation } from "../api";
 
+/** Three seats at the table, one per provider accent. */
+function BrandMark() {
+  return (
+    <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+      <circle cx="16" cy="16" r="15" className="brand-ring" />
+      <circle cx="16" cy="9" r="3.4" className="seat-openai" />
+      <circle cx="9.5" cy="21" r="3.4" className="seat-anthropic" />
+      <circle cx="22.5" cy="21" r="3.4" className="seat-gemini" />
+    </svg>
+  );
+}
+
 interface SidebarProps {
   conversations: Conversation[];
   activeId: number | null;
@@ -22,7 +34,10 @@ export function Sidebar({
   return (
     <aside className="sidebar">
       <div className="sidebar-head">
-        <h1>AI Roundtable</h1>
+        <h1>
+          <BrandMark />
+          AI Roundtable
+        </h1>
         <button type="button" className="btn primary block" onClick={onNew} disabled={busy}>
           New conversation
         </button>
