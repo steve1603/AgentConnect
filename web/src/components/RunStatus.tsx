@@ -81,7 +81,10 @@ export function RunStatus({ state }: { state: RunState }) {
             {state.chips
               .filter((chip) => chip.phase === phase)
               .map((chip) => (
-                <div className={`provider-chip ${chip.status}`} key={`${phase}:${chip.provider}`}>
+                <div
+                  className={`provider-chip chip-${chip.provider} ${chip.status}`}
+                  key={`${phase}:${chip.provider}`}
+                >
                   <span className="marker" />
                   <span className="name">{chip.label}</span>
                   <span className="detail">{detailFor(chip)}</span>

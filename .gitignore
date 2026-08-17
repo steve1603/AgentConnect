@@ -4,10 +4,11 @@ data/
 *.db-shm
 *.db-wal
 
-# Go build output
-roundtable
-roundtable.exe
-/dist/
+# Go build output. These are anchored with a leading slash so they match only
+# the compiled binary at the repo root - a bare `roundtable` would also match
+# the cmd/roundtable/ source directory.
+/roundtable
+/roundtable.exe
 
 # Frontend
 web/node_modules/
